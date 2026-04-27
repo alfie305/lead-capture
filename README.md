@@ -1,9 +1,29 @@
 # Coral Gables Buyer's Guide — Lead Capture Page
 
-Live URL: https://alfie305.github.io/lead-capture/
+**Live URL:** https://lead-capture-amber.vercel.app/ (Vercel, auto-deploys from `main`)
+**Repo:** https://github.com/alfie305/lead-capture
 
 ## What This Is
 A lead capture page for The Keyes Company. Visitors enter their email and timeline to receive a free Coral Gables Buyer's Guide PDF delivered automatically via Klaviyo.
+
+---
+
+## Status (as of 2026-04-27)
+
+**Working:**
+- Email capture → Google Sheets + Klaviyo subscription → DOI confirmation → Klaviyo flow sends PDF
+- Confirmation modal reminding users to confirm DOI email + check Promotions/Spam (commit `3a7d073`)
+
+**In progress:**
+- Klaviyo DOI confirmation email + flow email being switched to **text-only** in Klaviyo UI to escape Gmail's Promotions tab
+- Customizing the DOI confirmation email copy (in Klaviyo, not code)
+
+**Planned but blocked:**
+- **SMS backup delivery** — phone-number capture in modal so users can opt into a text with the same PDF link, attached to the same Klaviyo profile.
+  - Blocker: **10DLC brand registration rejected by TCR** for `www.keyes.com` ("not a full site / placeholder content").
+  - Pending decision: domain strategy — submit `alfredomorejon.keyes.com` directly, buy personal domain + 301 redirect, or buy team brand domain + build mini-site.
+  - Implementation plan saved at `~/.claude/plans/klaviyo-allows-for-text-unified-journal.md`.
+- **WhatsApp via Klaviyo** — being evaluated as an alternative to SMS. Avoids 10DLC entirely; strong fit for the Coral Gables Latin American buyer demographic.
 
 ---
 
@@ -14,6 +34,10 @@ Visitor fills form → clicks "Send Me the Guide"
   ↓
 1. Browser → Google Apps Script (logs lead to Google Sheets)
 2. Browser → Klaviyo Client API (subscribes to list TqcAat)
+  ↓
+Confirmation modal appears (reminds to confirm DOI email + check spam folders)
+  ↓
+User clicks DOI email confirm link → joins list TqcAat
   ↓
 Klaviyo Flow fires → sends PDF guide email to visitor
 ```
@@ -56,6 +80,14 @@ Klaviyo Flow fires → sends PDF guide email to visitor
 - Removed Klaviyo API calls from Apps Script (browser handles Klaviyo now)
 - Apps Script now only logs the lead row to Google Sheets
 - Must redeploy as new version after any changes
+
+### 4. Confirmation modal (commit `3a7d073`)
+- After form submit, a styled modal pops up with:
+  - 3-step instructions to confirm the Klaviyo DOI email
+  - "Don't see it?" callout with chips for Promotions / Spam / Updates / Junk folders
+  - "Got it — I'll check now" CTA
+- Closes via X, CTA, backdrop click, or Esc
+- File: `index.html` (HTML at `~1494`, CSS at `~937`, JS at `~1622`)
 
 ---
 
