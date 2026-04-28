@@ -22,7 +22,7 @@ A single-file static HTML lead capture page for **The Keyes Company** (real esta
 ### Klaviyo (browser-side opt-in)
 - **Company ID (public):** `VHFw97`
 - **List ID:** `TqcAat` (Coral Gables Guide Requests) — double opt-in enabled
-- **API:** `/client/subscriptions/` endpoint, revision `2024-10-15`, `custom_source: "Coral Gables Guide"`
+- **API:** `/client/subscriptions/` endpoint, revision `2025-04-15`, `custom_source: "Coral Gables Guide"`
 - **Submit handler:** [index.html:1547](index.html) — POST to Klaviyo + Google Sheets, then opens confirm modal
 - **Klaviyo flow:** "Coral Gables Guide Delivery" — triggered on list join, sends PDF link via email
 - **PDF location:** Google Drive `https://drive.google.com/uc?export=download&id=1psju1WZFdXda2A75NStpydj1Zj18xNFR`
