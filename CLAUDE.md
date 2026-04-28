@@ -6,50 +6,109 @@ Operational context for Claude when working in this project. Humans should read 
 
 ## What this project is
 
-A single-file static HTML lead capture page for **The Keyes Company** (real estate brokerage, Coral Gables FL). One agent: Alfredo Morejon. Visitors enter email + timeline, receive a Coral Gables Buyer's Guide PDF via Klaviyo email flow.
+A single-file static HTML lead capture page for **The Keyes Company** (real estate brokerage, Coral Gables FL). One agent: Alfredo Morejon. Visitors enter email + timeline, receive a Coral Gables Buyer's Guide PDF via email.
 
 **Stack:** plain HTML/CSS/JS in [index.html](index.html). No build step. No framework. ~1700 lines, all in one file.
 
 **Deployed:**
 - Production: `https://lead-capture-amber.vercel.app/` (Vercel auto-deploys from `main`)
 - Repo: `https://github.com/alfie305/lead-capture`
-- Old/possibly-stale: `https://alfie305.github.io/lead-capture/` (referenced in README; verify before relying on it)
+
+---
+
+## Current architecture (as of 2026-04-28)
+
+**Klaviyo is bypassed.** After repeated issues (DOI profiles not appearing, Outlook deliverability failures, DataDome blocking TCR/Meta crawlers preventing 10DLC and WhatsApp registration), we pivoted to **n8n + Microsoft Outlook** for direct email delivery.
+
+### How form submission works now
+
+```
+Visitor fills form → clicks "Send Me the Guide"
+  ↓
+Browser → n8n webhook (single JSON POST: {email, timeline, source})
+  ↓
+n8n workflow:
+  1. Log to Google Sheets
+  2. Send guide email via Microsoft Outlook to visitor
+  3. IF timeline == "Within 30 days" → hot lead alert email to Alfredo
+     ELSE → regular lead notify email to Alfredo
+  4. Respond 200 OK
+  ↓
+Confirm modal appears: "Check your inbox" (no DOI step)
+```
+
+### Submit handler
+
+[index.html ~1727](index.html) — `N8N_WEBHOOK` constant, single `fetch` POST with JSON body.
+
+**Status:** `N8N_WEBHOOK` is currently set to the placeholder `'REPLACE_WITH_N8N_WEBHOOK_URL'`. Replace with the live URL from n8n (Form Webhook node → copy production URL) then push to deploy.
 
 ---
 
 ## Integrations
 
-### Klaviyo (browser-side opt-in)
-- **Company ID (public):** `VHFw97`
-- **List ID:** `TqcAat` (Coral Gables Guide Requests) — double opt-in enabled
-- **API:** `/client/subscriptions/` endpoint, revision `2025-04-15`, `custom_source: "Coral Gables Guide"`
-- **Submit handler:** [index.html:1547](index.html) — POST to Klaviyo + Google Sheets, then opens confirm modal
-- **Klaviyo flow:** "Coral Gables Guide Delivery" — triggered on list join, sends PDF link via email
-- **PDF location:** Google Drive `https://drive.google.com/uc?export=download&id=1psju1WZFdXda2A75NStpydj1Zj18xNFR`
+### n8n (primary email delivery)
+- **Instance:** `https://alfie85.app.n8n.cloud`
+- **Workflow:** "Coral Gables Guide — Lead Capture" (saved as [n8n-workflow.json](n8n-workflow.json))
+- **Webhook path:** `coral-gables-guide` — production URL will be `https://alfie85.app.n8n.cloud/webhook/coral-gables-guide`
+- **Nodes:** Form Webhook → Log to Google Sheets → [Send Guide Email + Hot Lead? IF branch] → Respond OK
+- **Outlook credentials:** need to be connected in n8n UI (Microsoft Outlook OAuth2)
+- **Google Sheets credential:** need to be connected in n8n UI (Google Sheets OAuth2)
+- **Sheet ID:** user has entered the real Sheet ID in the n8n Google Sheets node
+- **MCP access:** `.mcp.json` in project root points at `https://alfie85.app.n8n.cloud/mcp-server/http` — takes effect after session restart
 
-### Google Apps Script (Sheets logging)
-- **Endpoint:** `https://script.google.com/macros/s/AKfycbzBqItmjE2AKxnpy8jdf7WARyCrXLkxzNEnsa6711dIyzxoKNXUAISiYp1zVvOSgDv0jA/exec`
-- Append-only row (Timestamp, Email, Timeline, Source). No Klaviyo logic in Apps Script — that moved to the browser.
+### Google Sheets (lead logging — via n8n, not Apps Script)
+- Logging is now done inside the n8n workflow, not from the browser.
+- Apps Script endpoint still exists but is no longer called by the page.
+- Columns: Timestamp | Email | Timeline | Source
+
+### Microsoft Outlook (email delivery — via n8n)
+- Sends guide email to lead from `alfredomorejon@keyes.com`
+- Plain text, includes PDF link: `https://drive.google.com/uc?export=download&id=1psju1WZFdXda2A75NStpydj1Zj18xNFR`
+- Reply-to: `alfredomorejon@keyes.com`
+- Hot lead alert goes to `alfredomorejon@keyes.com` with subject `🔥 HOT LEAD — {email}` when timeline is "Within 30 days"
+- Regular lead notify goes to `alfredomorejon@keyes.com` with subject `New Lead — {timeline}: {email}`
+
+### Klaviyo (bypassed — do not re-enable without discussion)
+- **Company ID:** `VHFw97`
+- **List ID:** `TqcAat` (Coral Gables Guide Requests) — double opt-in still configured
+- **Why bypassed:** 202 responses but profiles weren't appearing in All Profiles (DOI strict mode); Outlook deliverability issues due to DataDome bot protection on keyes.com blocking shared Klaviyo IPs; 10DLC/WhatsApp setup blocked by same DataDome issue.
+- Klaviyo code is fully removed from [index.html](index.html). Don't add it back without user approval.
+
+### Google Apps Script (no longer used)
+- Endpoint still live but page no longer calls it.
+- `https://script.google.com/macros/s/AKfycbzBqItmjE2AKxnpy8jdf7WARyCrXLkxzNEnsa6711dIyzxoKNXUAISiYp1zVvOSgDv0jA/exec`
 
 ---
 
-## Confirm modal (added commit `3a7d073`)
+## Confirm modal
 
-After form submit, a modal appears reminding the user to confirm DOI email and check Promotions/Spam folders.
+After form submit, a modal appears reminding the user to check their inbox. **No DOI step** — n8n sends immediately, no confirmation click required.
 
-- **HTML:** [index.html:1494](index.html) (`#confirm-modal`, `.cm-card`)
-- **CSS:** [index.html:937](index.html) onwards — class prefix `.cm-*`, reuses existing color tokens (`--ivory`, `--clay`, `--green`, etc.)
-- **JS:** [index.html:1622](index.html) onwards — opens on submit success or fail; closes on X / Got-it / backdrop / Esc
+- **HTML:** [index.html:1636](index.html) (`#confirm-modal`, `.cm-card`)
+- **CSS:** [index.html:941](index.html) onwards — class prefix `.cm-*`
+- **JS:** [index.html ~1812](index.html) — opens on submit success or fail; closes on X / Got-it / backdrop / Esc
+- **Current copy:** "On its way" / "Check your inbox." — from `alfredomorejon@keyes.com`, check Promotions/Spam/Updates/Junk
 
 ---
 
-## Current state / blockers (as of 2026-04-27)
+## Immediate next steps (resume here)
 
-- **Email opt-in:** working end-to-end. Klaviyo returns 202; profile lands in `TqcAat` after DOI confirmation.
-- **Klaviyo flow email → text-only:** in progress (in Klaviyo UI, not code) to escape Gmail Promotions tab. Switch is via Klaviyo email editor → three-dot menu → "Switch to text only editor."
-- **Double opt-in customization:** the system DOI confirmation email lives in Klaviyo (Templates or list Consent settings, depending on account UI version). Edit there, not in code.
-- **SMS backup channel:** planned but **blocked**. Implementation plan saved at `~/.claude/plans/klaviyo-allows-for-text-unified-journal.md`. Blocker: 10DLC brand registration was **rejected by TCR** for site `www.keyes.com` ("not a full site / placeholder content"). Domain strategy decision pending — options: submit `alfredomorejon.keyes.com` directly, buy a personal domain + 301 redirect, or buy team brand domain + build mini-site.
-- **WhatsApp via Klaviyo:** being evaluated as alternative to SMS. Strong fit for Coral Gables Latin American buyer demographic. Avoids 10DLC entirely. No code written yet.
+1. **Get n8n webhook URL** — in n8n, activate the workflow and copy the production webhook URL from the Form Webhook node.
+2. **Replace placeholder** — in [index.html ~1732](index.html), replace `'REPLACE_WITH_N8N_WEBHOOK_URL'` with the real URL.
+3. **Connect Outlook credential** — in n8n UI, open each Outlook node and connect Microsoft Outlook OAuth2 account.
+4. **Connect Google Sheets credential** — in n8n UI, open the Google Sheets node and connect Google Sheets OAuth2 account.
+5. **Activate workflow** — toggle it live in n8n.
+6. **Test** — submit form on local or Vercel preview, check Google Sheets row appears and guide email arrives in inbox (not Promotions).
+7. **Push to GitHub** — Vercel auto-deploys from `main`.
+
+---
+
+## Blocked / deferred
+
+- **SMS backup delivery** — 10DLC brand registration rejected by TCR for `www.keyes.com`. DataDome bot protection blocks TCR's automated crawler. Implementation plan at `~/.claude/plans/klaviyo-allows-for-text-unified-journal.md`. Pending domain decision.
+- **WhatsApp via Klaviyo** — blocked by same DataDome issue (Meta's link validator can't reach keyes.com). Evaluated as alternative to SMS for Coral Gables Latin American buyer demographic.
+- **Domain strategy** — options: `alfredomorejon.keyes.com`, personal domain + 301 redirect, team brand domain. No decision yet.
 
 ---
 
@@ -57,24 +116,23 @@ After form submit, a modal appears reminding the user to confirm DOI email and c
 
 **Do:**
 - Edit [index.html](index.html) directly. Single file, no build step.
-- Test by opening the file locally (`open index.html`) or via the Vercel preview after push.
+- Test locally: `open index.html` or use Vercel preview after push.
 - Commit small, push to `main` for auto-deploy.
-- For UI work, the codebase uses semantic class prefixes (`.cm-*` for confirm modal, `.form-*` for the capture form, `.cm-sms-*` reserved for the deferred SMS section).
+- Class prefixes: `.cm-*` for confirm modal, `.form-*` for capture form, `.cm-sms-*` reserved for deferred SMS section.
 
 **Don't:**
-- Add frameworks or build tooling — keep it static.
-- Re-introduce private API keys in browser code. Klaviyo private key lives in Apps Script only.
-- Edit Klaviyo flows/templates from code — those are managed in Klaviyo's UI and changes are out-of-band.
-- Add features without explicit user approval. The user prefers small, reviewable changes.
-- Touch the existing email submit path in `index.html` (lines ~1547–1620) when adding the SMS/WhatsApp section — additive only.
+- Add frameworks or build tooling.
+- Re-introduce Klaviyo or Apps Script calls without explicit approval.
+- Add features without user approval — small reviewable changes only.
+- Put private API keys or tokens in browser-side code.
 
 ---
 
 ## Style / preferences
 
-- Page typography: **Playfair Display** for serif headlines (italic for emphasis), **Source Sans 3** for body, **JetBrains Mono** for accent chips.
-- Color tokens defined at [index.html:17-33](index.html#L17-L33). Always use CSS variables, not hex literals.
-- Animation: subtle, cubic-bezier `(.2,.7,.2,1)` is the project standard. No bouncy or playful motion.
+- Typography: **Playfair Display** (serif headlines, italic for emphasis), **Source Sans 3** (body), **JetBrains Mono** (accent chips).
+- Color tokens at [index.html:17-33](index.html#L17-L33). Always use CSS variables, never hex literals.
+- Animation: subtle, `cubic-bezier(.2,.7,.2,1)`. No bouncy motion.
 - Copy: warm but professional. No emojis in product copy. No exclamation marks in CTAs.
 
 ---
@@ -83,5 +141,5 @@ After form submit, a modal appears reminding the user to confirm DOI email and c
 
 - Multi-agent / multi-brokerage support
 - Internationalization (US-only, English-only)
-- Server-side rendering or any backend beyond Apps Script + Klaviyo
-- CRM integration beyond the Klaviyo profile
+- Server-side rendering or any backend beyond n8n
+- CRM integration

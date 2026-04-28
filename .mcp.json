@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "n8n-mcp": {
+      "type": "http",
+      "url": "https://alfie85.app.n8n.cloud/mcp-server/http",
+      "headers": {
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjZGEzMzRjZi05ODBkLTQ2MDYtOTBjYi0yN2IxNTZiNzFiMDEiLCJpc3MiOiJuOG4iLCJhdWQiOiJtY3Atc2VydmVyLWFwaSIsImp0aSI6IjU0ODU4YjExLWM1YWMtNDhiOS1hNDEwLTVlNjE0MWU2YWZhMSIsImlhdCI6MTc3NzM5OTMzM30.WDZTa7ZV_IPZkmLufy9KtT49cTNm5TjCALZppDGAvVM"
+      }
+    }
+  }
+}

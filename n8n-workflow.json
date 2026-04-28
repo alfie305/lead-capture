@@ -1,0 +1,197 @@
+{
+  "name": "Coral Gables Guide — Lead Capture",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "coral-gables-guide",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Form Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ new Date().toLocaleString('en-US', {timeZone: 'America/New_York'}) }}",
+            "Email": "={{ $('Form Webhook').item.json.body.email }}",
+            "Timeline": "={{ $('Form Webhook').item.json.body.timeline }}",
+            "Source": "={{ $('Form Webhook').item.json.body.source }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000002",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [460, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Form Webhook').item.json.body.email }}",
+        "subject": "Here's your Coral Gables Buyer's Guide",
+        "emailType": "text",
+        "message": "Here's your guide:\n\nhttps://drive.google.com/uc?export=download&id=1psju1WZFdXda2A75NStpydj1Zj18xNFR\n\nHope it helps. Feel free to reply if you have any questions about the market.\n\nAlfie\n\nP.S. If this landed in Promotions, drag it to your Primary tab so you don't miss future updates.",
+        "options": {
+          "replyTo": "alfredomorejon@keyes.com"
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000003",
+      "name": "Send Guide Email",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [680, 160],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "hot-lead-check",
+              "leftValue": "={{ $('Form Webhook').item.json.body.timeline }}",
+              "rightValue": "Within 30 days",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000004",
+      "name": "Hot Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 420]
+    },
+    {
+      "parameters": {
+        "sendTo": "alfredomorejon@keyes.com",
+        "subject": "=🔥 HOT LEAD — {{ $('Form Webhook').item.json.body.email }}",
+        "emailType": "text",
+        "message": "={{ $('Form Webhook').item.json.body.email }} just downloaded the Coral Gables Buyer's Guide.\n\nTimeline: Within 30 days\n\nThis is a hot lead — they're actively looking. Consider reaching out directly.\n\nTime: {{ new Date().toLocaleString('en-US', {timeZone: 'America/New_York'}) }} ET\nSource: Coral Gables Guide Lead Capture",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000005",
+      "name": "Hot Lead Alert",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [900, 340],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "alfredomorejon@keyes.com",
+        "subject": "=New Lead — {{ $('Form Webhook').item.json.body.timeline }}: {{ $('Form Webhook').item.json.body.email }}",
+        "emailType": "text",
+        "message": "={{ $('Form Webhook').item.json.body.email }} just downloaded the Coral Gables Buyer's Guide.\n\nTimeline: {{ $('Form Webhook').item.json.body.timeline }}\n\nTime: {{ new Date().toLocaleString('en-US', {timeZone: 'America/New_York'}) }} ET\nSource: Coral Gables Guide Lead Capture",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000006",
+      "name": "Regular Lead Notify",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [900, 500],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Microsoft Outlook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true }"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000007",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 160]
+    }
+  ],
+  "connections": {
+    "Form Webhook": {
+      "main": [
+        [
+          { "node": "Log to Google Sheets", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Log to Google Sheets": {
+      "main": [
+        [
+          { "node": "Send Guide Email", "type": "main", "index": 0 },
+          { "node": "Hot Lead?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Send Guide Email": {
+      "main": [
+        [
+          { "node": "Respond OK", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Hot Lead?": {
+      "main": [
+        [
+          { "node": "Hot Lead Alert", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Regular Lead Notify", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": []
+}
