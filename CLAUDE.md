@@ -16,7 +16,7 @@ A single-file static HTML lead capture page for **The Keyes Company** (real esta
 
 ---
 
-## Current architecture (as of 2026-04-28)
+## Current architecture (as of 2026-04-29)
 
 **Klaviyo is bypassed.** After repeated issues (DOI profiles not appearing, Outlook deliverability failures, DataDome blocking TCR/Meta crawlers preventing 10DLC and WhatsApp registration), we pivoted to **n8n + Microsoft Outlook** for direct email delivery.
 
@@ -39,9 +39,9 @@ Confirm modal appears: "Check your inbox" (no DOI step)
 
 ### Submit handler
 
-[index.html ~1727](index.html) — `N8N_WEBHOOK` constant, single `fetch` POST with JSON body.
+[index.html:1731](index.html#L1731) — `N8N_WEBHOOK` constant, single `fetch` POST with JSON body.
 
-**Status:** `N8N_WEBHOOK` is currently set to the placeholder `'REPLACE_WITH_N8N_WEBHOOK_URL'`. Replace with the live URL from n8n (Form Webhook node → copy production URL) then push to deploy.
+**Status:** Live. `N8N_WEBHOOK` is set to `'https://alfie85.app.n8n.cloud/webhook/coral-gables-guide'` and deployed to Vercel.
 
 ---
 
@@ -49,13 +49,12 @@ Confirm modal appears: "Check your inbox" (no DOI step)
 
 ### n8n (primary email delivery)
 - **Instance:** `https://alfie85.app.n8n.cloud`
-- **Workflow:** "Coral Gables Guide — Lead Capture" (saved as [n8n-workflow.json](n8n-workflow.json))
-- **Webhook path:** `coral-gables-guide` — production URL will be `https://alfie85.app.n8n.cloud/webhook/coral-gables-guide`
+- **Workflow ID:** `77o5Y7KfIqLZLeQf` — "Coral Gables Guide — Lead Capture"
+- **Webhook path:** `coral-gables-guide` — production URL: `https://alfie85.app.n8n.cloud/webhook/coral-gables-guide`
 - **Nodes:** Form Webhook → Log to Google Sheets → [Send Guide Email + Hot Lead? IF branch] → Respond OK
-- **Outlook credentials:** need to be connected in n8n UI (Microsoft Outlook OAuth2)
-- **Google Sheets credential:** need to be connected in n8n UI (Google Sheets OAuth2)
-- **Sheet ID:** user has entered the real Sheet ID in the n8n Google Sheets node
-- **MCP access:** `.mcp.json` in project root points at `https://alfie85.app.n8n.cloud/mcp-server/http` — takes effect after session restart
+- **Status:** Active and deployed. All credentials connected (Outlook OAuth2 + Google Sheets OAuth2).
+- **MCP access:** `.mcp.json` in project root points at `https://alfie85.app.n8n.cloud/mcp-server/http`
+- **Note:** Updating the workflow via MCP (`update_workflow`) strips credential assignments from nodes — after any MCP update, re-open each credentialed node in the n8n UI, re-select the credential, and hit Publish.
 
 ### Google Sheets (lead logging — via n8n, not Apps Script)
 - Logging is now done inside the n8n workflow, not from the browser.
@@ -64,10 +63,12 @@ Confirm modal appears: "Check your inbox" (no DOI step)
 
 ### Microsoft Outlook (email delivery — via n8n)
 - Sends guide email to lead from `alfredomorejon@keyes.com`
-- Plain text, includes PDF link: `https://drive.google.com/uc?export=download&id=1psju1WZFdXda2A75NStpydj1Zj18xNFR`
+- HTML email, subject: "Your Coral Gables Guide Inside!"
+- Guide link: `https://drive.google.com/file/d/1psju1WZFdXda2A75NStpydj1Zj18xNFR/view?usp=sharing`
 - Reply-to: `alfredomorejon@keyes.com`
 - Hot lead alert goes to `alfredomorejon@keyes.com` with subject `🔥 HOT LEAD — {email}` when timeline is "Within 30 days"
 - Regular lead notify goes to `alfredomorejon@keyes.com` with subject `New Lead — {timeline}: {email}`
+- Microsoft Outlook OAuth2 required IT admin approval (Keyes Company tenant) — approved 2026-04-29. Only Mail.Send scope needed; Mail.ReadWrite is also requested by n8n by default but not used.
 
 ### Klaviyo (bypassed — do not re-enable without discussion)
 - **Company ID:** `VHFw97`
@@ -92,15 +93,17 @@ After form submit, a modal appears reminding the user to check their inbox. **No
 
 ---
 
-## Immediate next steps (resume here)
+## Status (as of 2026-04-29)
 
-1. **Get n8n webhook URL** — in n8n, activate the workflow and copy the production webhook URL from the Form Webhook node.
-2. **Replace placeholder** — in [index.html ~1732](index.html), replace `'REPLACE_WITH_N8N_WEBHOOK_URL'` with the real URL.
-3. **Connect Outlook credential** — in n8n UI, open each Outlook node and connect Microsoft Outlook OAuth2 account.
-4. **Connect Google Sheets credential** — in n8n UI, open the Google Sheets node and connect Google Sheets OAuth2 account.
-5. **Activate workflow** — toggle it live in n8n.
-6. **Test** — submit form on local or Vercel preview, check Google Sheets row appears and guide email arrives in inbox (not Promotions).
-7. **Push to GitHub** — Vercel auto-deploys from `main`.
+**Everything is live.** No pending setup steps.
+
+- Webhook wired in index.html and deployed to Vercel
+- n8n workflow active, all credentials connected
+- Google Sheets logging confirmed working
+- Guide email sending confirmed working (HTML, correct link, correct copy)
+- Lead notification emails (hot lead + regular) confirmed working
+
+If resuming after a break, just test a form submission on the live site and check the sheet + inbox.
 
 ---
 
